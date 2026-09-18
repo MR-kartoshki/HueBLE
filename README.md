@@ -24,10 +24,11 @@ It leverages the Bleak library to interact with Bluetooth Philips Hue lights.
 - 🌗 Brightness control
 - 🌡️ Colour temp control
 - 🌈 XY colour control
+- ⏱️ Custom transitions, including instant changes
 - ❔ Light state (power/brightness/temp/colour)
 - ⚙️ Light configuration (name)
 - 📊 Light metadata (manufacturer/model/zigbee address)
-- 🔐 DLC/ALS authentication for shared Hue lights
+- 🔐 Support for newer shared Hue lights
 - 🤜 Supports push & polling models
 - 🔂 Simple structure
 - 📜 Mediocre documentation
@@ -129,10 +130,24 @@ if __name__ == "__main__":
 ```
 
 
-### Shared lights / DLC authentication
+### Transitions
 
-Newer Hue lights may use a `hue://dlc` sharing credential instead of
-Bluetooth bonding.
+Power, brightness, colour temperature and colour changes can use a custom
+transition time.
+
+```python
+await light.set_power(True, transition_ms=0)
+await light.set_brightness(254, transition_ms=100)
+await light.set_colour_temp(250, transition_ms=400)
+await light.set_colour_xy(0.3, 0.4, transition_ms=200)
+```
+
+`transition_ms=0` makes the change instant. Transition times use 100 ms steps.
+
+
+### Shared Hue lights
+
+Newer Hue lights can be connected using a `hue://dlc` sharing credential.
 
 Pass the URI when creating the light:
 
@@ -143,12 +158,10 @@ light = HueBLE.HueBleLight(
 )
 ```
 
-HueBLE will establish the ALS session automatically on connection and
-re-establish it after reconnecting.
+HueBLE handles the connection automatically, including reconnecting later.
 
 > [!WARNING]
-> The DLC URI contains authentication material. Treat it as a secret and
-> do not commit it to source control.
+> Keep the DLC URI private and do not commit it to source control.
 
 
 ### Demo program
