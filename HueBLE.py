@@ -79,12 +79,10 @@ DLC_ALS_METHOD_TLV = bytes.fromhex("64 04 0b 10 00 02 f4")
 #: \x02\x10\x0e\xbe\x02
 UUID_HUE_IDENTIFIER = "0000fe0f-0000-1000-8000-00805f9b34fb"
 
-#: The assumed minimum colour temperature of the light in mireds.
-#: Constant as it us unknown if/where the light exposes this data.
+#: Fallback minimum colour temperature when the light does not expose a range.
 MIN_MIREDS = 153
 
-#: The assumed maximum colour temperature of the light in mireds.
-#: Constant as it us unknown if/where the light exposes this data.
+#: Fallback maximum colour temperature when the light does not expose a range.
 MAX_MIREDS = 500
 
 #: Default string of light metadata light address, model, and firmware.
@@ -397,9 +395,7 @@ def _derive_session_key(
 ) -> bytes:
     generator = hashlib.sha256(psk).digest()
     shared = _x25519(private_init, public_resp)
-    identifier = _session_identifier(
-        ieee_init, ieee_resp, public_init, public_resp
-    )
+    identifier = _session_identifier(ieee_init, ieee_resp, public_init, public_resp)
     intermediate = hashlib.sha256(shared + identifier + generator).digest()
     return hmac.new(intermediate, b"\x01", hashlib.sha256).digest()[:16]
 
@@ -422,7 +418,9 @@ def _uuid_bytes(value: str) -> bytes:
 
 
 def _associated_data(service_uuid: str, characteristic_uuid: str) -> bytes:
-    return _uuid_bytes(service_uuid) + b"\x00" + _uuid_bytes(characteristic_uuid) + b"\x00"
+    return (
+        _uuid_bytes(service_uuid) + b"\x00" + _uuid_bytes(characteristic_uuid) + b"\x00"
+    )
 
 
 def _nonce(ieee: bytes, counter: int) -> bytes:
@@ -609,9 +607,7 @@ class HueBleLight(object):
         await self._client.start_notify(UUID_ZD_AUTHENTICATE, notify)
         try:
             message = (
-                b"\x01"
-                + DLC_ALS_METHOD_TLV
-                + _zd_tlv(0x02, ieee_init + public_init)
+                b"\x01" + DLC_ALS_METHOD_TLV + _zd_tlv(0x02, ieee_init + public_init)
             )
             await self._client.write_gatt_char(
                 UUID_ZD_AUTHENTICATE, message, response=True
@@ -1173,7 +1169,10 @@ class HueBleLight(object):
                 f"""Light "{self.name}" does not appear to """
                 f"""support polling the light name."""
             )
-        if self._client.services.get_characteristic(UUID_LIGHT_CONTROL_INFO) is not None:
+        if (
+            self._client.services.get_characteristic(UUID_LIGHT_CONTROL_INFO)
+            is not None
+        ):
             try:
                 info = await self._read_gatt(UUID_LIGHT_CONTROL_INFO)
                 minimum, maximum = _parse_light_control_info(info)
@@ -1645,8 +1644,7 @@ class HueBleLight(object):
         await self._write_gatt(UUID_BRIGHTNESS, bytes([max(min(brightness, 254), 1)]))
 
     async def set_colour_temp(self, colour_temp: int):
-        """Sets the temperature from an int between 153 and 500.
-        Uses mireds."""
+        """Sets the colour temperature in mireds within the light's supported range."""
         temp = max(
             min(int(colour_temp), self._maximum_mireds),
             self._minimum_mireds,
@@ -1882,10 +1880,7 @@ class HueBleLight(object):
 
     @property
     def minimum_mireds(self) -> int | None:
-        """Minimum mireds colour temperature supported.
-        Returns None if the feature is not supported by the light.
-        This value is assumed and not actually polled from the light.
-        """
+        """Minimum supported colour temperature in mireds."""
         if self.supports_colour_temp:
             return self._minimum_mireds
         else:
@@ -1893,10 +1888,7 @@ class HueBleLight(object):
 
     @property
     def maximum_mireds(self) -> int | None:
-        """Maximum mireds colour temperature supported.
-        Returns None if the feature is not supported by the light.
-        This value is assumed and not actually polled from the light.
-        """
+        """Maximum supported colour temperature in mireds."""
         if self.supports_colour_temp:
             return self._maximum_mireds
         else:
