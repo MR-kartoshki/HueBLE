@@ -162,9 +162,11 @@ class EffectType(Enum):
     CANDLE = 0x01
     FIREPLACE = 0x02
     PRISM = 0x03
+    SUNRISE = 0x09
     SPARKLE = 0x0A
     OPAL = 0x0B
     GLISTEN = 0x0C
+    SUNSET = 0x0D
     UNDERWATER = 0x0E
     COSMOS = 0x0F
     SUNBEAM = 0x10
@@ -1747,7 +1749,7 @@ class HueBleLight(object):
                 bytes.fromhex(EffectCommands.EFFECT.value),
                 max(min(effect.value, 254), 1),
                 bytes.fromhex(EffectCommands.EFFECT_SPEED.value),
-                max(min(effect_speed, 254), 1),
+                max(min(effect_speed, 255), 0),
             )
         else:
             # if no effect is selected we can just operate in colourxy mode and ommit the effect data in the transfer
@@ -1798,7 +1800,7 @@ class HueBleLight(object):
                 bytes.fromhex(EffectCommands.EFFECT.value),
                 max(min(effect.value, 254), 1),
                 bytes.fromhex(EffectCommands.EFFECT_SPEED.value),
-                max(min(effect_speed, 254), 1),
+                max(min(effect_speed, 255), 0),
             )
         else:
             # if no effect is selected we can just operate in colourxy mode and ommit the effect data in the transfer
